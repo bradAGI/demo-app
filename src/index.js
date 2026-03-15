@@ -12,6 +12,10 @@ process.on('unhandledRejection', (reason, promise) => {
 
 process.on('uncaughtException', (err) => {
   console.error(`[${new Date().toISOString()}] Uncaught Exception:`, err);
+  if (server) {
+    server.close(() => process.exit(1));
+  }
+  setTimeout(() => process.exit(1), 5000).unref();
 });
 
 app.use(express.json());
@@ -35,6 +39,11 @@ async function start() {
 
   function shutdown(signal) {
     console.log(`Received ${signal}, shutting down gracefully...`);
+    const forceExit = setTimeout(() => {
+      console.error('Graceful shutdown timed out, forcing exit');
+      process.exit(1);
+    }, 10000);
+    forceExit.unref();
     server.close(async () => {
       try {
         await client.end();
@@ -42,6 +51,7 @@ async function start() {
       } catch (err) {
         console.error('Error closing database connection:', err);
       }
+      clearTimeout(forceExit);
       process.exit(0);
     });
   }
