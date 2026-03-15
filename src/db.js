@@ -4,7 +4,11 @@ const { usersTable } = require('./schema');
 
 const DATABASE_URL = process.env.DATABASE_URL || 'postgres://postgres:postgres@db:5432/demo';
 
-const client = postgres(DATABASE_URL);
+const client = postgres(DATABASE_URL, {
+  max: 10,
+  idle_timeout: 30,
+  connect_timeout: 5,
+});
 const db = drizzle(client, { schema: { users: usersTable } });
 
 async function initDb() {
