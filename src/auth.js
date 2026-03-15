@@ -1,13 +1,14 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { eq } = require('drizzle-orm');
+const { db } = require('./db');
+const { usersTable } = require('./schema');
 
 const router = express.Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production';
 const SALT_ROUNDS = 10;
-
-const users = new Map();
 
 router.post('/register', async (req, res) => {
   const { email, password, name } = req.body;
@@ -16,17 +17,21 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ error: 'email, password, and name are required' });
   }
 
-  if (users.has(email)) {
+  const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+  if (existing) {
     return res.status(409).json({ error: 'User already exists' });
   }
 
   const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-  const user = { email, name, password: hashedPassword, createdAt: new Date().toISOString() };
-  users.set(email, user);
+  const [user] = await db.insert(usersTable).values({
+    email,
+    name,
+    password: hashedPassword,
+  }).returning({ email: usersTable.email, name: usersTable.name });
 
-  const token = jwt.sign({ email, name }, JWT_SECRET, { expiresIn: '24h' });
+  const token = jwt.sign({ email: user.email, name: user.name }, JWT_SECRET, { expiresIn: '24h' });
 
-  res.status(201).json({ token, user: { email, name } });
+  res.status(201).json({ token, user: { email: user.email, name: user.name } });
 });
 
 router.post('/login', async (req, res) => {
@@ -36,7 +41,7 @@ router.post('/login', async (req, res) => {
     return res.status(400).json({ error: 'email and password are required' });
   }
 
-  const user = users.get(email);
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (!user) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
@@ -51,4 +56,4 @@ router.post('/login', async (req, res) => {
   res.json({ token, user: { email, name: user.name } });
 });
 
-module.exports = { router, users };
+module.exports = { router };
