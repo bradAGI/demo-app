@@ -1,6 +1,6 @@
 const express = require('express');
 const { router: authRouter } = require('./auth');
-const { initDb } = require('./db');
+const { initDb, client } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,9 +15,25 @@ app.use('/api', authRouter);
 
 async function start() {
   await initDb();
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server listening on port ${PORT}`);
   });
+
+  function shutdown(signal) {
+    console.log(`Received ${signal}, shutting down gracefully...`);
+    server.close(async () => {
+      try {
+        await client.end();
+        console.log('Database connection closed.');
+      } catch (err) {
+        console.error('Error closing database connection:', err);
+      }
+      process.exit(0);
+    });
+  }
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 }
 
 start().catch((err) => {
