@@ -11,11 +11,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-  if (server) {
-    server.close(() => process.exit(1));
-  }
-  setTimeout(() => process.exit(1), 5000);
+  console.error(`[${new Date().toISOString()}] Uncaught Exception:`, err);
 });
 
 app.use(express.json());
@@ -25,6 +21,11 @@ app.get('/health', (_req, res) => {
 });
 
 app.use('/api', authRouter);
+
+app.use((err, _req, res, _next) => {
+  console.error(`[${new Date().toISOString()}] Route error:`, err.message);
+  res.status(500).json({ error: 'Internal server error' });
+});
 
 async function start() {
   await initDb();
