@@ -8,6 +8,8 @@ const client = postgres(DATABASE_URL, {
   max: 10,
   idle_timeout: 30,
   connect_timeout: 5,
+  onnotice: () => {},
+  onclose: () => console.error(`[${new Date().toISOString()}] Database connection closed unexpectedly`),
 });
 const db = drizzle(client, { schema: { users: usersTable } });
 
