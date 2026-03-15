@@ -4,6 +4,19 @@ const { initDb, client } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+let server;
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  if (server) {
+    server.close(() => process.exit(1));
+  }
+  setTimeout(() => process.exit(1), 5000);
+});
 
 app.use(express.json());
 
@@ -15,7 +28,7 @@ app.use('/api', authRouter);
 
 async function start() {
   await initDb();
-  const server = app.listen(PORT, '0.0.0.0', () => {
+  server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server listening on port ${PORT}`);
   });
 
